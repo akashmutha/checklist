@@ -13,14 +13,10 @@ import com.droidrank.checklist.model.CheckListItem;
 
 import java.util.ArrayList;
 
-import rx.Observable;
-import rx.functions.Func1;
-import rx.schedulers.Schedulers;
-
 /**
- * Created by mutha on 23/10/16.
+ * Created by mutha on 27/10/16.
  * Database helper class for list
- * doing all the database queries on background thread
+ * doing all the database queries, should be called on background thread
  */
 
 public class DatabaseHelper extends SQLiteOpenHelper {
@@ -33,8 +29,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final int DATABASE_VERSION = 1;
 
     // Have only one instance of database helper class
-    public static synchronized DatabaseHelper getHelper(Context context){
-        if(databaseHelper == null){
+    public static synchronized DatabaseHelper getHelper(Context context) {
+        if (databaseHelper == null) {
             databaseHelper = new DatabaseHelper(context);
         }
         return databaseHelper;
@@ -54,29 +50,24 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     }
 
-    public Observable<String> insertItem(final CheckListItem checkListItem) throws SQLiteException {
-        return Observable.just(checkListItem).flatMap(new Func1<CheckListItem, Observable<? extends String>>() {
-            @Override
-            public Observable<? extends String> call(CheckListItem newCheckListItem) {
-                SQLiteDatabase db = getWritableDatabase();
-                ContentValues contentValues = getContentValues(checkListItem);
-                CheckListItem tempCheckListItem = getItem(checkListItem.getItemName());
-                //If the item doesn't exist, insert it into the database
-                if (tempCheckListItem == null) {
-                    db.insert("items", null, contentValues);
-                } else {
-                    return Observable.just(null);
-                }
-                return Observable.just(checkListItem.getItemName());
-            }
-        }).subscribeOn(Schedulers.io()).observeOn(Schedulers.io());
+    public String insertItem(final CheckListItem checkListItem) throws SQLiteException {
+        SQLiteDatabase db = getWritableDatabase();
+        ContentValues contentValues = getContentValues(checkListItem);
+        CheckListItem tempCheckListItem = getItem(checkListItem.getItemName());
+        //If the item doesn't exist, insert it into the database
+        if (tempCheckListItem == null) {
+            db.insert("items", null, contentValues);
+        } else {
+            return null;
+        }
+        return checkListItem.getItemName();
     }
 
     @NonNull
     private ContentValues getContentValues(CheckListItem checkListItem) {
         ContentValues contentValues = new ContentValues();
         contentValues.put("item_name", checkListItem.getItemName());
-        if(checkListItem.isChecked()) {
+        if (checkListItem.isChecked()) {
             contentValues.put("ischecked", 1);
         } else {
             contentValues.put("ischecked", 0);
@@ -84,21 +75,21 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return contentValues;
     }
 
-    public Observable<ArrayList<CheckListItem>> getItemList() {
+    public ArrayList<CheckListItem> getItemList() {
         SQLiteDatabase db = getReadableDatabase();
         Cursor cursor = db.rawQuery("select * from " + Constants.TABLE_NAME, null);
         ArrayList<CheckListItem> checkListItems = new ArrayList<>();
         CheckListItem checkListItem;
-        if(cursor.moveToFirst()){
+        if (cursor.moveToFirst()) {
             checkListItem = getItemInfoFromCursor(cursor);
             checkListItems.add(checkListItem);
         }
-        while(cursor.moveToNext()) {
+        while (cursor.moveToNext()) {
             checkListItem = getItemInfoFromCursor(cursor);
             checkListItems.add(checkListItem);
         }
         closeCursor(cursor);
-        return Observable.just(checkListItems);
+        return checkListItems;
     }
 
     @NonNull
@@ -113,7 +104,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         CheckListItem checkListItem = new CheckListItem();
         checkListItem.setItemName(cursor.getString(cursor.getColumnIndex("item_name")));
 
-        if(cursor.getInt(cursor.getColumnIndex("ischecked")) == 0){
+        if (cursor.getInt(cursor.getColumnIndex("ischecked")) == 0) {
             checkListItem.setChecked(false);
         } else {
             checkListItem.setChecked(true);
@@ -121,23 +112,18 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return checkListItem;
     }
 
-    public Observable<String> deleteItem(final CheckListItem checkListItem) throws SQLiteException {
-        return Observable.just(checkListItem).flatMap(new Func1<CheckListItem,
-                Observable<? extends String>>() {
-            @Override
-            public Observable<? extends String> call(CheckListItem newCheckListItem) {
-                SQLiteDatabase db = getWritableDatabase();
-                CheckListItem tempCheckListItem = getItem(checkListItem.getItemName());
-                //If the item doesn't exist, insert it into the database
-                if (tempCheckListItem != null) {
-                    db.delete( Constants.TABLE_NAME, "item_name" + " = ?",
-                            new String[] {checkListItem.getItemName()});
-                } else {
-                    return Observable.just(null);
-                }
-                return Observable.just(checkListItem.getItemName());
-            }
-        }).subscribeOn(Schedulers.io()).observeOn(Schedulers.io());
+    public String deleteItem(final CheckListItem checkListItem) throws SQLiteException {
+        SQLiteDatabase db = getWritableDatabase();
+        CheckListItem tempCheckListItem = getItem(checkListItem.getItemName());
+        //If the item doesn't exist, insert it into the database
+        if (tempCheckListItem != null) {
+            db.delete(Constants.TABLE_NAME, "item_name" + " = ?",
+                    new String[]{checkListItem.getItemName()});
+        } else {
+            return null;
+        }
+        return checkListItem.getItemName();
+
     }
 
     private CheckListItem getItem(String itemName) {
@@ -153,23 +139,18 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return null;
     }
 
-    public Observable<String> updateItemStatus(final CheckListItem checkListItem) throws SQLiteException {
-        return Observable.just(checkListItem).flatMap(new Func1<CheckListItem,
-                Observable<? extends String>>() {
-            @Override
-            public Observable<? extends String> call(CheckListItem newCheckListItem) {
-                SQLiteDatabase db = getWritableDatabase();
-                ContentValues contentValues = getContentValues(checkListItem);
-                CheckListItem tempCheckListItem = getItem(checkListItem.getItemName());
-                //If the item doesn't exist, insert it into the database
-                if (tempCheckListItem != null) {
-                    db.update(Constants.TABLE_NAME, contentValues, "item_name" + " = ?",
-                            new String[] {checkListItem.getItemName()});
-                } else {
-                    return Observable.just(null);
-                }
-                return Observable.just(checkListItem.getItemName());
-            }
-        }).subscribeOn(Schedulers.io()).observeOn(Schedulers.io());
+    public String updateItemStatus(final CheckListItem checkListItem) throws SQLiteException {
+        SQLiteDatabase db = getWritableDatabase();
+        ContentValues contentValues = getContentValues(checkListItem);
+        CheckListItem tempCheckListItem = getItem(checkListItem.getItemName());
+        //If the item doesn't exist, insert it into the database
+        if (tempCheckListItem != null) {
+            db.update(Constants.TABLE_NAME, contentValues, "item_name" + " = ?",
+                    new String[]{checkListItem.getItemName()});
+        } else {
+            return null;
+        }
+        return checkListItem.getItemName();
+
     }
 }

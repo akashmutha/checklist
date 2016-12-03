@@ -1,7 +1,7 @@
 package com.droidrank.checklist.model;
 
 /**
- * Created by mutha on 23/10/16.
+ * Created by mutha on 27/10/16.
  */
 
 public class CheckListItem {

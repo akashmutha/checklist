@@ -3,6 +3,7 @@ package com.droidrank.checklist;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
@@ -15,10 +16,6 @@ import com.droidrank.checklist.data.localdb.DatabaseHelper;
 import com.droidrank.checklist.model.CheckListItem;
 
 import java.util.ArrayList;
-
-import rx.android.schedulers.AndroidSchedulers;
-import rx.functions.Action1;
-import rx.schedulers.Schedulers;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -54,7 +51,7 @@ public class MainActivity extends AppCompatActivity {
             putDefaultItemsToDB();
             prefs.edit().putBoolean(Constants.IS_FIRST_TIME_READ, true).commit();
         }
-        listItemAdapter = new CheckListAdapter(checkListItems);
+        listItemAdapter = new CheckListAdapter(checkListItems, getApplicationContext());
         listView.setAdapter(listItemAdapter);
     }
 
@@ -75,16 +72,18 @@ public class MainActivity extends AppCompatActivity {
             listItem.setChecked(false);
             listItem.setItemName(itemName);
             checkListItems.add(listItem);
-            DatabaseHelper.getHelper(getApplicationContext())
-                    .insertItem(listItem)
-                    .subscribeOn(Schedulers.newThread())
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(new Action1<String>() {
-                        @Override
-                        public void call(String s) {
-                            refreshList();
-                        }
-                    });
+            new AsyncTask<CheckListItem, String, String>(){
+
+                @Override
+                protected String doInBackground(CheckListItem... params) {
+                    return DatabaseHelper.getHelper(getApplicationContext()).insertItem(params[0]);
+                }
+
+                @Override
+                protected void onPostExecute(String s) {
+                    refreshList();
+                }
+            }.execute(listItem);
         }
         return checkListItems;
     }
@@ -92,17 +91,19 @@ public class MainActivity extends AppCompatActivity {
     private void refreshList(){
         // get the list from db on background thread
         // and make the view modification on the main thread
-        DatabaseHelper.getHelper(getApplicationContext())
-                .getItemList()
-                .subscribeOn(Schedulers.newThread())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new Action1<ArrayList<CheckListItem>>() {
-                    // this runs on the main thread as observe on is called on main thread
-                    @Override
-                    public void call(ArrayList<CheckListItem> checkListItems1) {
-                        listItemAdapter.setList(checkListItems1);
-                        listItemAdapter.notifyDataSetChanged();
-                    }
-                });
+        new AsyncTask<Integer, Integer, ArrayList<CheckListItem>>(){
+
+            @Override
+            protected ArrayList<CheckListItem> doInBackground(Integer... params) {
+                return DatabaseHelper.getHelper(getApplicationContext()).getItemList();
+            }
+
+            @Override
+            protected void onPostExecute(ArrayList<CheckListItem> checkListItems) {
+                super.onPostExecute(checkListItems);
+                listItemAdapter.setList(checkListItems);
+                listItemAdapter.notifyDataSetChanged();
+            }
+        }.execute();
     }
 }

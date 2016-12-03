@@ -1,6 +1,8 @@
 package com.droidrank.checklist.Adapter;
 
 import android.app.Activity;
+import android.content.Context;
+import android.os.AsyncTask;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -18,20 +20,18 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 
-import rx.android.schedulers.AndroidSchedulers;
-import rx.functions.Action1;
-import rx.schedulers.Schedulers;
-
 /**
- * Created by mutha on 23/10/16.
+ * Created by mutha on 27/10/16.
  */
 
 public class CheckListAdapter extends BaseAdapter {
 
     private ArrayList<CheckListItem> checkListItems;
+    private Context applicationContext;
 
-    public CheckListAdapter(final ArrayList<CheckListItem> checkListItems){
+    public CheckListAdapter(final ArrayList<CheckListItem> checkListItems, Context context){
         this.checkListItems = checkListItems;
+        this.applicationContext = context;
     }
 
     @Override
@@ -65,16 +65,19 @@ public class CheckListAdapter extends BaseAdapter {
                 @Override
                 public void onClick(View v) {
                     checkListItems.remove(position);
-                    DatabaseHelper.getHelper(parent.getContext())
-                            .deleteItem(listItem)
-                            .subscribeOn(Schedulers.newThread())
-                            .observeOn(AndroidSchedulers.mainThread())
-                            .subscribe(new Action1<String>() {
-                                @Override
-                                public void call(String s) {
-                                    notifyDataSetChanged();
-                                }
-                            });
+                    new AsyncTask<CheckListItem, Integer, String>(){
+                        @Override
+                        protected String doInBackground(CheckListItem... params) {
+                            return DatabaseHelper.getHelper(applicationContext)
+                                    .deleteItem(params[0]);
+                        }
+
+                        @Override
+                        protected void onPostExecute(String s) {
+                            super.onPostExecute(s);
+                            notifyDataSetChanged();
+                        }
+                    }.execute(listItem);
                 }
             });
             convertView.setTag(viewHolderItem);
@@ -95,17 +98,22 @@ public class CheckListAdapter extends BaseAdapter {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 listItem.setChecked(!listItem.isChecked());
-                DatabaseHelper.getHelper(parent.getContext())
-                        .updateItemStatus(listItem)
-                        .subscribeOn(Schedulers.newThread())
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe(new Action1<String>() {
-                            @Override
-                            public void call(String s) {
-                                rearrangeList();
-                                notifyDataSetChanged();
-                            }
-                        });
+
+                new AsyncTask<CheckListItem, Integer, String>(){
+
+                    @Override
+                    protected String doInBackground(CheckListItem... params) {
+                        return DatabaseHelper.getHelper(applicationContext)
+                                .updateItemStatus(listItem);
+                    }
+
+                    @Override
+                    protected void onPostExecute(String s) {
+                        super.onPostExecute(s);
+                        rearrangeList();
+                        notifyDataSetChanged();
+                    }
+                }.execute(listItem);
             }
         });
         return convertView;

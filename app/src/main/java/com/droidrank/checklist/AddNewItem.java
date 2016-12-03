@@ -11,10 +11,6 @@ import android.widget.Toast;
 import com.droidrank.checklist.data.localdb.DatabaseHelper;
 import com.droidrank.checklist.model.CheckListItem;
 
-import rx.android.schedulers.AndroidSchedulers;
-import rx.functions.Action1;
-import rx.schedulers.Schedulers;
-
 public class AddNewItem extends AppCompatActivity {
 
     // To take the user input for the new item
@@ -47,24 +43,26 @@ public class AddNewItem extends AppCompatActivity {
                 } else {
                     CheckListItem checkListItem = new CheckListItem();
                     checkListItem.setItemName(itemName.getText().toString());
-                    DatabaseHelper.getHelper(getApplicationContext())
-                            .insertItem(checkListItem)
-                            .subscribeOn(Schedulers.newThread())
-                            .observeOn(AndroidSchedulers.mainThread())
-                            .subscribe(new Action1<String>() {
-                                @Override
-                                public void call(String s) {
-                                    if (s == null) {
-                                        Toast.makeText(getApplicationContext(),
-                                                getApplicationContext()
-                                                        .getResources()
-                                                        .getString(R.string.item_already_exists_message)
-                                                , Toast.LENGTH_SHORT).show();
-                                    } else {
-                                        finish();
-                                    }
-                                }
-                            });
+                    new AsyncTask<CheckListItem, String, String>(){
+
+                        @Override
+                        protected String doInBackground(CheckListItem... params) {
+                            return DatabaseHelper.getHelper(getApplicationContext()).insertItem(params[0]);
+                        }
+
+                        @Override
+                        protected void onPostExecute(String s) {
+                            if (s == null) {
+                                Toast.makeText(getApplicationContext(),
+                                        getApplicationContext()
+                                                .getResources()
+                                                .getString(R.string.item_already_exists_message)
+                                        , Toast.LENGTH_SHORT).show();
+                            } else {
+                                finish();
+                            }
+                        }
+                    }.execute(checkListItem);
                 }
             }
         });
